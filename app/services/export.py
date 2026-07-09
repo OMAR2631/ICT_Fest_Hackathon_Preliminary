@@ -1,6 +1,7 @@
 """CSV export of bookings for administrators."""
 import csv
 import io
+from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -19,7 +20,7 @@ EXPORT_HEADER = [
 ]
 
 
-def fetch_bookings_raw(db: Session, room_id: int) -> list[Booking]:
+def fetch_bookings_raw(db: Session, room_id: int) -> List[Booking]:
     """Load every booking for a single room, ordered by id."""
     return (
         db.query(Booking)
@@ -29,7 +30,7 @@ def fetch_bookings_raw(db: Session, room_id: int) -> list[Booking]:
     )
 
 
-def _fetch_scoped(db: Session, org_id: int, user_id: int | None, room_id: int | None) -> list[Booking]:
+def _fetch_scoped(db: Session, org_id: int, user_id: Optional[int], room_id: Optional[int]) -> List[Booking]:
     query = db.query(Booking).join(Room).filter(Room.org_id == org_id)
     if user_id is not None:
         query = query.filter(Booking.user_id == user_id)
@@ -42,11 +43,16 @@ def generate_export(
     db: Session,
     org_id: int,
     user_id: int,
-    room_id: int | None,
+    room_id: Optional[int],
     include_all: bool,
 ) -> str:
     if include_all:
         if room_id is not None:
+            # Verify room belongs to admin's org
+            room = db.query(Room).filter(Room.id == room_id, Room.org_id == org_id).first()
+            if room is None:
+                from ..errors import AppError
+                raise AppError(404, "ROOM_NOT_FOUND", "Room not found")
             rows = fetch_bookings_raw(db, room_id)
         else:
             rows = _fetch_scoped(db, org_id, None, None)

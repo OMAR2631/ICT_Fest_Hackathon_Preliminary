@@ -1,5 +1,6 @@
 """Administrative reporting and export endpoints."""
 from datetime import datetime, time, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
@@ -64,7 +65,7 @@ def usage_report(
 
 @router.get("/export")
 def export(
-    room_id: int | None = Query(None),
+    room_id: Optional[int] = Query(None),
     include_all: bool = Query(False),
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
